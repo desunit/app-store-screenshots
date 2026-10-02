@@ -123,3 +123,10 @@
   box-shadow: 0 0 0 2px rgba(91, 124, 250, 0.45);
   border-radius: 2px;
 }
+
+/* Captions in scripts with tall marks (Thai tone marks, Devanagari matras, Arabic and Vietnamese
+   diacritics) need more line height than the tight Latin default, or the lines touch. */
+:lang(th), :lang(lo), :lang(km), :lang(my), :lang(hi), :lang(mr), :lang(ne), :lang(bn),
+:lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(vi) {
+  --headline-line-height: 1.22;
+}

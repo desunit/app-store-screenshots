@@ -181,6 +181,11 @@ export const SCREENSHOT_FONTS: Record<ScreenshotFontId, { name: string; family: 
   "avenir-next": { name: "Avenir Next", family: '"Avenir Next", Avenir, sans-serif' },
   "helvetica-neue": { name: "Helvetica Neue", family: '"Helvetica Neue", Helvetica, Arial, sans-serif' },
   "futura": { name: "Futura", family: "Futura, 'Trebuchet MS', sans-serif" },
+  // Rounded heavy display face of arcade games (Arial Rounded ships with macOS).
+  "arial-rounded": {
+    name: "Arial Rounded",
+    family: '"Arial Rounded MT Bold", "Arial Rounded MT", "Nunito", "Varela Round", sans-serif',
+  },
   "baskerville": { name: "Baskerville", family: "Baskerville, 'Baskerville Old Face', Georgia, serif" },
   "palatino": { name: "Palatino", family: "Palatino, 'Palatino Linotype', 'Book Antiqua', serif" },
   "optima": { name: "Optima", family: "Optima, Candara, 'Segoe UI', sans-serif" },
@@ -418,6 +423,28 @@ export const THEMES: Record<string, Theme> = {
     accentAlt: "#1F1A4D",
     muted: "#5B5480",
   },
+  // Pixel-arcade games: sky gradient, white display type with a thick ink
+  // outline and a hard ink shadow (Flappy-style score look), gold emphasis.
+  "arcade-sky": {
+    id: "arcade-sky",
+    name: "Arcade Sky",
+    bg: "#38B6E8",
+    bgAlt: "#2A2232",
+    fg: "#FFFFFF",
+    fgAlt: "#FFFFFF",
+    accent: "#FFC93C",
+    accentAlt: "#FFC93C",
+    muted: "#B9EBF8",
+    text: {
+      outline: "#2A2232",
+      outlineWidth: 0.11,
+      dropShadow: "#2A2232",
+      dropShadowOffset: 0.075,
+      emphasis: "#FFC93C",
+      emphasisAlt: "#FFC93C",
+      noBlobs: true,
+    },
+  },
   "quiet-japandi": {
     id: "quiet-japandi",
     name: "Quiet Japandi",
@@ -441,6 +468,13 @@ export const THEMES: Record<string, Theme> = {
     muted: "#D8C6A6",
   },
 };
+
+/** Adds a deck's own themes to the list (idempotent; called on every editor render). */
+export function registerThemes(themes: Theme[] | undefined) {
+  for (const t of themes || []) {
+    if (t && typeof t.id === "string" && typeof t.bg === "string") THEMES[t.id] = t;
+  }
+}
 
 export function themeById(themeId: string | undefined): Theme {
   return THEMES[themeId || ""] || THEMES[DEFAULT_THEME_ID];

@@ -68,6 +68,18 @@ export function BackgroundControls({ slide, theme, onChange }: Props) {
           />
         </div>
       )}
+      <Input
+        value={slide.backgroundImage || ""}
+        onChange={(event) => onChange({ backgroundImage: event.target.value.trim() || undefined })}
+        placeholder="Image path, e.g. /backgrounds/{locale}/01.png"
+        className="h-8 font-mono text-xs"
+        aria-label="Background image path"
+      />
+      {slide.backgroundImage && (
+        <p className="text-[11px] text-muted-foreground">
+          The image covers the slide and replaces the background above.
+        </p>
+      )}
       {mode === "custom" && (
         <p className="text-[11px] text-muted-foreground">
           Caption text switches to a readable colour when the theme&apos;s colours would be too faint.

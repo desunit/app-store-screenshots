@@ -5,13 +5,14 @@ import { NextResponse } from "next/server";
 import { projectValidationError } from "@/lib/project-validation";
 import { rejectCrossSiteWrite } from "@/lib/request-guard";
 import { readJsonBody } from "@/lib/request-body";
+import { deckDir } from "@/lib/deck-dir";
 
 export const dynamic = "force-dynamic";
 
 const PROJECT_FILE = "app-store-screenshots.json";
 
 function filePath() {
-  return path.join(process.cwd(), PROJECT_FILE);
+  return path.join(deckDir(), PROJECT_FILE);
 }
 
 const revision = (raw: string | null) => `"${raw === null ? "missing" : createHash("sha256").update(raw).digest("hex")}"`;

@@ -6,6 +6,7 @@ import { rejectCrossSiteWrite } from "@/lib/request-guard";
 import type { ImportedFont } from "@/lib/types";
 import { decodeBase64, readJsonBody } from "@/lib/request-body";
 import { writeAsset } from "@/lib/write-asset";
+import { deckDir } from "@/lib/deck-dir";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
 
   const hash = createHash("sha1").update(bytes).digest("hex").slice(0, 16);
   const filename = `${hash}.${FONT_EXT[format]}`;
-  const absDir = path.join(process.cwd(), FONT_DIR_REL);
+  const absDir = path.join(deckDir(), FONT_DIR_REL);
   const absFile = path.join(absDir, filename);
 
   try {

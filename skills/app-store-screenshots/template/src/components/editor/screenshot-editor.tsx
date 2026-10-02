@@ -6,6 +6,7 @@ import {
   DEFAULT_SCREENSHOT_FONT_ID,
   getExportSizes,
   hasTheme,
+  registerThemes,
   IMPORTED_FONT_FAMILY,
   SCREENSHOT_FONTS,
   supportsLandscape,
@@ -15,6 +16,7 @@ import { detectPlatform, nid } from "@/lib/defaults";
 import { imageElementKey, isBuiltInElementId, isImageElementId, isTextElementId, textElementKey } from "@/lib/elements";
 import { renderSlide } from "@/lib/export-render";
 import { exportAssetPaths } from "@/lib/export-assets";
+import { fontFaceCss, fontForLocale } from "@/lib/locale-fonts";
 import { didFail, preloadImages } from "@/lib/image-cache";
 import { resolveScreenshot, writeLocalized } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
@@ -53,8 +55,10 @@ export function ScreenshotEditor() {
     currentSlides.find((s) => s.id === activeSlideId) || currentSlides[0] || null;
   const theme = themeById(state.themeId);
   const fontId = state.fontId || DEFAULT_SCREENSHOT_FONT_ID;
-  const fontFamily = SCREENSHOT_FONTS[fontId].family;
+  registerThemes(state.themes);
+  const fontFamily = fontForLocale(state, state.locale, SCREENSHOT_FONTS[fontId].family);
   useImportedFontFace(state.importedFont);
+  useFontFaces(state.fontFaces);
 
   React.useEffect(() => {
     if (selectedElement && selectedElement.slideId !== activeSlide?.id) {
@@ -91,7 +95,7 @@ export function ScreenshotEditor() {
     // Preload every locale variant so bulk export doesn't race image loads.
     const allSlides: Slide[] = Object.values(state.slidesByDevice).flat();
     for (const s of allSlides) {
-      for (const raw of [s.screenshot, s.screenshotSecondary]) {
+      for (const raw of [s.screenshot, s.screenshotSecondary, s.backgroundImage]) {
         if (!raw || raw.startsWith("data:")) continue;
         if (raw.includes("{locale}")) {
           for (const loc of state.locales) paths.add(resolveScreenshot(raw, loc));
@@ -484,6 +488,8 @@ export function ScreenshotEditor() {
             // fonts.ready only covers faces already requested; explicitly load an
             // imported font so a not-yet-used face can't export as the fallback.
             if (fontId === "self-hosted") await document.fonts.load(`64px ${fontFamily}`);
+            // Every locale's own font, so a caption is never measured or drawn in a fallback.
+            await Promise.all((state.fontFaces || []).map((f) => document.fonts.load(`${f.weight?.split(" ")[0] || "400"} 64px "${f.family}"`)));
             await document.fonts.ready;
           })(),
           new Promise<never>((_, reject) => {
@@ -516,6 +522,11 @@ export function ScreenshotEditor() {
     let encoding: Promise<void> = Promise.resolve();
     for (const locale of locales) {
       setExportLocaleOverride(locale);
+      await waitForPaint();
+      // This locale's caption font may only start loading now; captions re-fit when it lands
+      // (FitWidth's ResizeObserver), which takes one more frame to paint.
+      await document.fonts.ready;
+      await waitForPaint();
       await waitForPaint();
 
       for (let i = 0; i < currentSlides.length; i++) {
@@ -820,7 +831,11 @@ export function ScreenshotEditor() {
                 locale={exportLocaleOverride ?? exportState.locale}
                 appName={exportState.appName}
                 appIcon={exportState.appIcon}
-                fontFamily={SCREENSHOT_FONTS[exportState.fontId || DEFAULT_SCREENSHOT_FONT_ID].family}
+                fontFamily={fontForLocale(
+                  exportState,
+                  exportLocaleOverride ?? exportState.locale,
+                  SCREENSHOT_FONTS[exportState.fontId || DEFAULT_SCREENSHOT_FONT_ID].family,
+                )}
                 connectedCanvas={exportState.connectedCanvas}
                 hideEmpty
               />
@@ -856,6 +871,19 @@ function useImportedFontFace(font: ImportedFont | undefined) {
     document.head.appendChild(style);
     return () => style.remove();
   }, [font?.src, font?.format]);
+}
+
+// The project's extra font files (per-locale fonts), registered in <head> like the imported font.
+function useFontFaces(faces: ProjectState["fontFaces"]) {
+  const css = fontFaceCss(faces);
+  React.useEffect(() => {
+    if (!css) return;
+    const style = document.createElement("style");
+    style.dataset.projectFontFaces = "";
+    style.textContent = css;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, [css]);
 }
 
 function slugify(s: string) {

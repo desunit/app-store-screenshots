@@ -91,6 +91,8 @@ export type Slide = {
   /** Optional relative font-size scales for built-in caption text. */
   typography?: SlideTypography;
   backgroundColor?: string;   // per-slide hex color override
+  /** Full-bleed picture behind the slide (public path, may contain {locale}); replaces the theme background. */
+  backgroundImage?: string;
   // Per-element overrides; when present, replaces layout default placement.
   transforms?: Partial<Record<BuiltInElementId, ElementTransform>>;
   textElements?: TextElement[];
@@ -120,6 +122,7 @@ export type ThemeId =
   | "risograph-zine"
   | "bento-keynote-grid"
   | "toybox-primary"
+  | "arcade-sky"
   | "quiet-japandi"
   | "vintage-travel-poster";
 
@@ -134,6 +137,7 @@ export type ScreenshotFontId =
   | "optima"
   | "palatino"
   | "futura"
+  | "arial-rounded"
   | "self-hosted";
 
 export type ImportedFont = {
@@ -141,6 +145,25 @@ export type ImportedFont = {
   format: "woff2" | "woff" | "truetype" | "opentype";
   /** Display name, taken from the uploaded file name. */
   name?: string;
+};
+
+// Text effects a theme can ask for. Words wrapped in *stars* in a headline
+// always take the emphasis colour (theme.text.emphasis, else the accent).
+export type ThemeText = {
+  /** Outline colour drawn around headline and label letters (arcade look). */
+  outline?: string;
+  /** Outline width as a fraction of the font size (default 0.1). */
+  outlineWidth?: number;
+  /** Hard, unblurred shadow under the outline, offset straight down. */
+  dropShadow?: string;
+  /** Drop-shadow offset as a fraction of the font size (default 0.07). */
+  dropShadowOffset?: number;
+  /** Colour of *starred* headline words. */
+  emphasis?: string;
+  /** Colour of *starred* words on inverted slides. */
+  emphasisAlt?: string;
+  /** Draw no decorative blobs on theme backgrounds. */
+  noBlobs?: boolean;
 };
 
 export type Theme = {
@@ -153,6 +176,7 @@ export type Theme = {
   accent: string;      // label color on bg, decorative blobs
   accentAlt?: string;  // label color on bgAlt; defaults to accent
   muted: string;
+  text?: ThemeText;
 };
 
 export type ProjectState = {
@@ -172,4 +196,17 @@ export type ProjectState = {
   // Per-device slide decks so platform switching preserves work
   slidesByDevice: Record<Device, Slide[]>;
   appIcon?: string;    // path under /public (e.g. /app-icon.png)
+  // Extra @font-face rules (files under /public), registered in <head> for preview and export.
+  fontFaces?: FontFace[];
+  // CSS font stack per locale ("ja", "zh-Hant", "pt-BR"…): exact code first, then the language
+  // before "-". Locales not listed use fontId. For scripts the deck font has no glyphs for.
+  localeFonts?: Record<string, string>;
+  // The app's own themes, kept in its deck; they join the built-in list (and win on an id clash).
+  themes?: Theme[];
+};
+
+export type FontFace = {
+  family: string;
+  src: string;          // e.g. /fonts/MPLUSRounded1c-ExtraBold.ttf
+  weight?: string;      // "800", or a range "100 900" for a variable font
 };

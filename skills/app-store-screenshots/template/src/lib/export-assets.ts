@@ -8,6 +8,8 @@ export function exportAssetPaths(state: ProjectState): string[] {
   for (const slide of state.slidesByDevice[state.device] || []) {
     if (state.device === "feature-graphic" || slide.layout === "feature-graphic") {
       add(state.appIcon);
+      for (const image of slide.imageElements || []) add(image.src);
+      for (const locale of state.locales) add(resolveScreenshot(slide.backgroundImage, locale));
       continue;
     }
     if (slide.layout !== "no-device" || slide.transforms?.device || slide.transforms?.deviceSecondary) {
@@ -20,6 +22,7 @@ export function exportAssetPaths(state: ProjectState): string[] {
       }
     }
     for (const image of slide.imageElements || []) add(image.src);
+    for (const locale of state.locales) add(resolveScreenshot(slide.backgroundImage, locale));
   }
   return [...paths];
 }

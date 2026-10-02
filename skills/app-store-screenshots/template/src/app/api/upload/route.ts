@@ -6,6 +6,7 @@ import { rejectCrossSiteWrite, sniffImageType } from "@/lib/request-guard";
 import sharp from "sharp";
 import { decodeBase64, readJsonBody } from "@/lib/request-body";
 import { writeAsset } from "@/lib/write-asset";
+import { deckDir } from "@/lib/deck-dir";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
 
   const hash = createHash("sha1").update(parsed.bytes).digest("hex").slice(0, 16);
   const filename = `${hash}.${ext}`;
-  const absDir = path.join(process.cwd(), UPLOAD_DIR_REL);
+  const absDir = path.join(deckDir(), UPLOAD_DIR_REL);
   const absFile = path.join(absDir, filename);
 
   try {

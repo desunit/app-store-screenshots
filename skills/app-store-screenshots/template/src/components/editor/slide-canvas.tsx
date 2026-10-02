@@ -177,6 +177,7 @@ function EditableText({
   multiline = false,
   placeholder,
   onFocus,
+  emphasisColor,
 }: {
   value: string;
   editable?: boolean;
@@ -185,16 +186,27 @@ function EditableText({
   multiline?: boolean;
   placeholder?: string;
   onFocus?: () => void;
+  /** When set, *starred* words render in this colour (the stars are hidden until the text is focused). */
+  emphasisColor?: string;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
+  // Shows the value: raw text while focused (so the stars can be edited), styled spans otherwise.
+  const paint = React.useCallback(
+    (el: HTMLDivElement, focused: boolean) => {
+      const incoming = value || "";
+      if (focused || !emphasisColor || !incoming.includes("*")) {
+        if (el.textContent !== incoming || el.children.length) el.textContent = incoming;
+        return;
+      }
+      el.replaceChildren(...emphasisNodes(incoming, emphasisColor));
+    },
+    [value, emphasisColor],
+  );
   React.useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    const incoming = value || "";
-    if (el.textContent !== incoming && document.activeElement !== el) {
-      el.textContent = incoming;
-    }
-  }, [value]);
+    if (!el || document.activeElement === el) return;
+    paint(el, false);
+  }, [paint]);
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     if (!onChange) return;
@@ -217,12 +229,14 @@ function EditableText({
       suppressContentEditableWarning
       data-placeholder={placeholder}
       onInput={handleInput}
-      onFocus={() => onFocus?.()}
+      onFocus={(e) => {
+        paint(e.currentTarget, true);
+        onFocus?.();
+      }}
       onBlur={(e) => {
         // Edits skip syncing while focused; catch up so the canvas shows what
         // will export (e.g. clearing a translation falls back to English).
-        const incoming = value || "";
-        if (e.currentTarget.textContent !== incoming) e.currentTarget.textContent = incoming;
+        paint(e.currentTarget, false);
       }}
       onKeyDown={(e) => {
         if (!multiline && e.key === "Enter") {
@@ -247,6 +261,96 @@ function EditableText({
         ...style,
       }}
     />
+  );
+}
+
+// Splits "Hear it. *Hop* it." into text nodes and coloured spans; a lone star stays literal.
+function emphasisNodes(text: string, color: string): Node[] {
+  const nodes: Node[] = [];
+  const re = /\*([^*\n]+)\*/g;
+  let last = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m.index > last) nodes.push(document.createTextNode(text.slice(last, m.index)));
+    const span = document.createElement("span");
+    span.style.color = color;
+    span.textContent = m[1];
+    nodes.push(span);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(document.createTextNode(text.slice(last)));
+  return nodes;
+}
+
+// Outline + hard drop shadow for themes that ask for them (theme.text).
+function textEffects(theme: Theme, fontSize: number): React.CSSProperties {
+  const t = theme.text;
+  if (!t?.outline && !t?.dropShadow) return {};
+  const style: React.CSSProperties = {};
+  if (t.outline) {
+    // paint-order puts the stroke under the fill, so the full width shows outside the letters.
+    style.WebkitTextStroke = `${fontSize * (t.outlineWidth ?? 0.1) * 2}px ${t.outline}`;
+    style.paintOrder = "stroke fill";
+  }
+  if (t.dropShadow) {
+    const d = fontSize * (t.dropShadowOffset ?? 0.07);
+    const w = t.outline ? fontSize * (t.outlineWidth ?? 0.1) : 0;
+    // The shadow is the outlined letter shape moved down: ring it so it is as thick as the stroke.
+    const ring = [0, 0.7, 1, 0.7, 0, -0.7, -1, -0.7].map((cos, i) => {
+      const sin = [1, 0.7, 0, -0.7, -1, -0.7, 0, 0.7][i];
+      return `${(cos * w).toFixed(1)}px ${(d + sin * w).toFixed(1)}px 0 ${t.dropShadow}`;
+    });
+    style.textShadow = ring.join(", ");
+  }
+  return style;
+}
+
+// Scales its content down (never below `min`) so the widest line fits the box: a long
+// translation keeps its line count instead of wrapping into the phone. A ResizeObserver measures
+// again whenever the text's width changes — a late font swaps in after the first layout.
+function FitWidth({
+  children,
+  min = 0.55,
+  align,
+  watch,
+}: {
+  children: React.ReactNode;
+  min?: number;
+  align: "center" | "start";
+  watch: string;
+}) {
+  const outer = React.useRef<HTMLDivElement>(null);
+  const inner = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(1);
+  const measure = React.useCallback(() => {
+    const o = outer.current;
+    const i = inner.current;
+    if (!o || !i) return;
+    const need = i.offsetWidth; // layout width: the transform does not change it
+    const have = o.clientWidth * 0.97; // the outline draws a little outside the glyph box
+    const next = need > have ? Math.max(min, have / need) : 1;
+    setScale((prev) => (Math.abs(prev - next) > 0.001 ? next : prev));
+  }, [min]);
+  React.useLayoutEffect(measure, [watch, measure]);
+  React.useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => measure());
+    if (inner.current) ro.observe(inner.current);
+    if (outer.current) ro.observe(outer.current);
+    return () => ro.disconnect();
+  }, [measure]);
+  return (
+    <div ref={outer} style={{ width: "100%", display: "flex", justifyContent: align === "center" ? "center" : "flex-start" }}>
+      <div
+        ref={inner}
+        style={{
+          width: "max-content",
+          transform: scale < 1 ? `scale(${scale})` : undefined,
+          transformOrigin: align === "center" ? "top center" : "top left",
+        }}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -282,7 +386,9 @@ function Caption({
   const unit = Math.min(cW, cH);
   return (
     // "start" rather than "left" so a left-set caption hugs the right edge in RTL.
-    <div style={{ textAlign: align === "left" ? "start" : align, position: "relative", width: "100%" }}>
+    // lang: uppercase and line breaking follow the language (Turkish i → İ).
+    <div lang={locale} style={{ textAlign: align === "left" ? "start" : align, position: "relative", width: "100%" }}>
+      <FitWidth align={align === "left" ? "start" : "center"} watch={`${locale}|${pickText(slide.label, locale)}|${labelScale}`}>
       <EditableText
         value={pickText(slide.label, locale)}
         editable={editable}
@@ -293,14 +399,18 @@ function Caption({
           // Floor keeps the label legible on the 422×514 Apple Watch canvas;
           // the per-slide scale is applied on top of the floored base.
           fontSize: Math.max(unit * 0.028, 16) * labelScale,
+          ...textEffects(theme, Math.max(unit * 0.028, 16) * labelScale),
           fontWeight: 600,
           letterSpacing: Math.max(unit * 0.0015, 0.8) * labelScale,
           color: accent,
           textTransform: "uppercase",
           marginBottom: unit * 0.018,
           minHeight: unit * 0.03,
+          whiteSpace: "pre",
         }}
       />
+      </FitWidth>
+      <FitWidth align={align === "left" ? "start" : "center"} watch={`${locale}|${pickText(slide.headline, locale)}|${headlineScale}`}>
       <EditableText
         value={pickText(slide.headline, locale)}
         editable={editable}
@@ -308,14 +418,20 @@ function Caption({
         onChange={edit?.onHeadlineChange}
         onFocus={onFocus}
         placeholder="Headline goes here"
+        emphasisColor={(inverted ? theme.text?.emphasisAlt : undefined) ?? theme.text?.emphasis ?? accent}
         style={{
           fontSize: unit * 0.092 * headlineScale,
+          ...textEffects(theme, unit * 0.092 * headlineScale),
           fontWeight: 700,
-          lineHeight: 0.96,
+          // globals.css raises it for scripts with marks above and below the line (th, hi, ar, vi…).
+          lineHeight: "var(--headline-line-height, 0.96)",
           letterSpacing: -unit * 0.001 * headlineScale,
           color: fg,
+          // The author's line breaks are the layout: lines never wrap, FitWidth shrinks instead.
+          whiteSpace: "pre",
         }}
       />
+      </FitWidth>
     </div>
   );
 }
@@ -614,7 +730,7 @@ export function SlideCanvas({
         fontFamily,
       }}
     >
-      <SlideBackground slide={slide} cW={cW} cH={cH} theme={theme} />
+      <SlideBackground slide={slide} cW={cW} cH={cH} theme={theme} locale={locale} />
       <SlideElements
         slide={slide}
         device={device}
@@ -723,7 +839,7 @@ export function DeckCanvas({
               overflow: "hidden",
             }}
           >
-            <SlideBackground slide={slide} cW={cW} cH={cH} theme={theme} />
+            <SlideBackground slide={slide} cW={cW} cH={cH} theme={theme} locale={locale} />
             {showGuides && <ScreenGuide cW={cW} cH={cH} index={index} active={active} />}
           </div>
         );
@@ -791,13 +907,28 @@ function SlideBackground({
   cW,
   cH,
   theme,
+  locale,
 }: {
   slide: Slide;
   cW: number;
   cH: number;
   theme: Theme;
+  locale: string;
 }) {
   const inverted = !!slide.inverted;
+  if (slide.backgroundImage) {
+    return (
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: theme.bg }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={img(resolveScreenshot(slide.backgroundImage, locale))}
+          alt=""
+          draggable={false}
+          style={{ width: cW, height: cH, objectFit: "cover", display: "block", pointerEvents: "none" }}
+        />
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -808,8 +939,12 @@ function SlideBackground({
         color: slideColors(theme, slide).fg,
       }}
     >
-      <Blob cW={cW} color={theme.accent} x={-15} y={-10} size={55} opacity={inverted ? 0.25 : 0.32} />
-      <Blob cW={cW} color={theme.accent} x={70} y={75} size={45} opacity={inverted ? 0.18 : 0.25} />
+      {!theme.text?.noBlobs && (
+        <>
+          <Blob cW={cW} color={theme.accent} x={-15} y={-10} size={55} opacity={inverted ? 0.25 : 0.32} />
+          <Blob cW={cW} color={theme.accent} x={70} y={75} size={45} opacity={inverted ? 0.18 : 0.25} />
+        </>
+      )}
     </div>
   );
 }
@@ -885,6 +1020,45 @@ function FeatureGraphicCanvas({
   const inverted = slide.inverted ?? true;
   const bg = inverted ? theme.bgAlt : theme.bg;
   const colors = slideColors(theme, { ...slide, inverted });
+  // An outlined theme (theme.text) draws the name in its emphasis colour and outlines both lines.
+  const outlined = !!(theme.text?.outline || theme.text?.dropShadow);
+  const nameSize = cW * 0.06 * appNameScale;
+  const tagSize = cW * 0.028 * headlineScale;
+  const images = slide.imageElements || [];
+  const box = slide.transforms?.caption;
+  const text = (
+    <div lang={locale} style={{ minWidth: 0, width: box ? "100%" : undefined, textAlign: box ? "center" : undefined }}>
+      <div
+        style={{
+          fontSize: nameSize,
+          fontWeight: 800,
+          lineHeight: 1.05,
+          color: outlined ? theme.text?.emphasis || colors.fg : colors.fg,
+          ...textEffects(theme, nameSize),
+        }}
+      >
+        {appName || "App"}
+      </div>
+      <FitWidth align={box ? "center" : "start"} watch={`${locale}|${pickText(slide.headline, locale)}|${headlineScale}`}>
+        <EditableText
+          value={pickText(slide.headline, locale)}
+          editable={editable}
+          multiline
+          onChange={edit?.onHeadlineChange}
+          onFocus={() => edit?.onSelectElement?.("caption")}
+          style={{
+            fontSize: tagSize,
+            color: colors.fg,
+            opacity: outlined ? 1 : 0.85,
+            marginTop: cW * 0.012,
+            lineHeight: 1.25,
+            whiteSpace: "pre",
+            ...textEffects(theme, tagSize),
+          }}
+        />
+      </FitWidth>
+    </div>
+  );
   return (
     <div
       style={{
@@ -899,58 +1073,78 @@ function FeatureGraphicCanvas({
         color: colors.fg,
       }}
     >
-      <Blob cW={cW} color={theme.accent} x={70} y={20} size={50} opacity={0.45} />
-      <div style={{ display: "flex", alignItems: "center", gap: cW * 0.03, zIndex: 2 }}>
-        {appIcon && img(appIcon) ? (
-          <img
-            src={img(appIcon)}
-            alt=""
-            style={{
-              width: cW * 0.13,
-              height: cW * 0.13,
-              borderRadius: cW * 0.022,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-            }}
-            draggable={false}
-          />
-        ) : (
-          <div
-            aria-hidden
-            style={{
-              width: cW * 0.13,
-              height: cW * 0.13,
-              borderRadius: cW * 0.022,
-              background: `linear-gradient(135deg, ${theme.accent}55, ${theme.accent})`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: colors.fg,
-              fontWeight: 800,
-              fontSize: cW * 0.07,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-            }}
-          >
-            {(appName || "A").slice(0, 1).toUpperCase()}
-          </div>
-        )}
-        <div>
-          <div style={{ fontSize: cW * 0.06 * appNameScale, fontWeight: 800, lineHeight: 1.05 }}>{appName || "App"}</div>
-          <EditableText
-            value={pickText(slide.headline, locale)}
-            editable={editable}
-            multiline
-            onChange={edit?.onHeadlineChange}
-            onFocus={() => edit?.onSelectElement?.("caption")}
-            style={{
-              fontSize: cW * 0.028 * headlineScale,
-              color: colors.fg,
-              opacity: 0.85,
-              marginTop: cW * 0.012,
-              lineHeight: 1.25,
-            }}
-          />
+      {slide.backgroundImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={img(resolveScreenshot(slide.backgroundImage, locale))}
+          alt=""
+          draggable={false}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        !theme.text?.noBlobs && <Blob cW={cW} color={theme.accent} x={70} y={20} size={50} opacity={0.45} />
+      )}
+      {images.map((im) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={im.id}
+          src={img(im.src)}
+          alt=""
+          draggable={false}
+          style={{
+            position: "absolute",
+            left: im.transform.x,
+            top: im.transform.y,
+            width: im.transform.width,
+            height: im.transform.height,
+            objectFit: im.fit || "contain",
+            transform: im.transform.rotation ? `rotate(${im.transform.rotation}deg)` : undefined,
+            zIndex: im.transform.zIndex ?? 3,
+          }}
+        />
+      ))}
+      {box ? (
+        <div style={{ position: "absolute", left: box.x, top: box.y, width: box.width, height: box.height, zIndex: 4, display: "flex", alignItems: "center" }}>
+          {text}
         </div>
-      </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: cW * 0.03, zIndex: 2 }}>
+          {images.length === 0 &&
+            (appIcon && img(appIcon) ? (
+              <img
+                src={img(appIcon)}
+                alt=""
+                style={{
+                  width: cW * 0.13,
+                  height: cW * 0.13,
+                  borderRadius: cW * 0.022,
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                }}
+                draggable={false}
+              />
+            ) : (
+              <div
+                aria-hidden
+                style={{
+                  width: cW * 0.13,
+                  height: cW * 0.13,
+                  borderRadius: cW * 0.022,
+                  background: `linear-gradient(135deg, ${theme.accent}55, ${theme.accent})`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: colors.fg,
+                  fontWeight: 800,
+                  fontSize: cW * 0.07,
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                }}
+              >
+                {(appName || "A").slice(0, 1).toUpperCase()}
+              </div>
+            ))}
+          {text}
+        </div>
+      )}
     </div>
   );
 }

@@ -377,7 +377,7 @@ Ask the user these. Do not proceed until you have answers:
 2. **App icon** — "Where is your app icon PNG?"
 3. **App name** — "What's the app called?"
 4. **Feature list** — "List your app's features in priority order. What's the #1 thing your app does?"
-5. **Style direction** — "What style do you want? You can either (a) pick one of the named deep-spec styles, or (b) describe your own vibe in your own words (warm/organic, dark/moody, clean/minimal, bold/colorful, plus any reference apps you like) and I'll build a custom palette. The template also ships with palette presets in the toolbar theme picker: the generic `clean-light`, `dark-bold`, `warm-editorial`, `ocean-fresh`, and `bloom-roast`, plus one preset per named style (same id as the style slug). The named deep specs live in `style-prompts/` — see `style-prompts.md` for the full index. Currently available: Retro Rubberhose Mascot, Moody Curated Dating, Paper Sticker Skeuomorphic, Dreamy Pastel Couples, Hand-Drawn Editorial Tasks, Glossy 3D K-Beauty Creator, Liquid Glass Aurora, Swiss Grid Bold, Neon Athletic Night, Magazine Cover Editorial, Candy Pop Social, Soft Clay Wellness, Midnight Glow Pro, Risograph Zine, Bento Keynote Grid, Toybox Primary, Quiet Japandi, Vintage Travel Poster. If the user names one of these — or describes something that clearly matches one — read `style-prompts/_QUALITY_BAR.md` first, then the matching deep spec file, and apply its entire spec (palette, gradients, shadows, rotations, per-slide breakdown). If the user describes a fully custom style, fall back to the General Visual Design Principles below and pick the closest deep spec as a starting reference."
+5. **Style direction** — "What style do you want? You can either (a) pick one of the named deep-spec styles, or (b) describe your own vibe in your own words (warm/organic, dark/moody, clean/minimal, bold/colorful, plus any reference apps you like) and I'll build a custom palette. The template also ships with palette presets in the toolbar theme picker: the generic `clean-light`, `dark-bold`, `warm-editorial`, `ocean-fresh`, and `bloom-roast`, plus one preset per named style (same id as the style slug). The named deep specs live in `style-prompts/` — see `style-prompts.md` for the full index. Currently available: Retro Rubberhose Mascot, Moody Curated Dating, Paper Sticker Skeuomorphic, Dreamy Pastel Couples, Hand-Drawn Editorial Tasks, Glossy 3D K-Beauty Creator, Liquid Glass Aurora, Swiss Grid Bold, Neon Athletic Night, Magazine Cover Editorial, Candy Pop Social, Soft Clay Wellness, Midnight Glow Pro, Risograph Zine, Bento Keynote Grid, Toybox Primary, Quiet Japandi, Vintage Travel Poster, Arcade Sky. If the user names one of these — or describes something that clearly matches one — read `style-prompts/_QUALITY_BAR.md` first, then the matching deep spec file, and apply its entire spec (palette, gradients, shadows, rotations, per-slide breakdown). If the user describes a fully custom style, fall back to the General Visual Design Principles below and pick the closest deep spec as a starting reference."
 
 ### Optional
 
@@ -442,6 +442,28 @@ public/
 ```
 
 The starter project state lives in `app-store-screenshots.json`, not `src/lib/defaults.ts`. If the user names their screenshots differently, either rename them or update the relevant slide `screenshot` fields in `app-store-screenshots.json` so the initial deck points at the right files. The user can also drag-drop files directly into the editor at runtime — those uploads are written to `public/screenshots/uploaded/<hash>.png` when the dev server is running.
+
+### Arcade looks, per-slide backgrounds and headless export
+
+- `backgroundImage` on a slide (public path, `{locale}` allowed) covers the slide and replaces
+  the theme background. Cut one wide panorama into one image per slide and the scenery runs on
+  across the seams. The inspector has a field for it under Background.
+- `theme.text` adds an outline and a hard drop shadow to the label and headline (`outline`,
+  `outlineWidth`, `dropShadow`, `dropShadowOffset`), sets the emphasis colour (`emphasis`,
+  `emphasisAlt`) and can turn off the decorative blobs (`noBlobs`). The `arcade-sky` theme uses all
+  of it; `fontId: "arial-rounded"` is the matching font.
+- Words in `*stars*` in a headline render in the emphasis colour in every theme (the stars
+  show only while the text is being edited).
+- **Localized captions:** `fontFaces` (font files under the deck's `public/`) and
+  `localeFonts` (a font stack per locale or language) give each script its own font; headlines
+  never wrap — a long translation shrinks to fit (floor 55%); the caption carries `lang`, so
+  uppercase and line height follow the language (Thai, Devanagari, Arabic, Vietnamese get more).
+- **One editor, many decks:** `DECK_DIR=<folder>` makes the editor use that folder's
+  `app-store-screenshots.json` and serve its `public/` files; `themes` in the project file adds
+  the app's own themes; `DECK_DIST` sets the build folder.
+- `node scripts/export-deck.mjs --device iphone --device android [--url …] [--out exports]`
+  exports decks from the running editor with headless Chrome (Playwright: a dev dependency, or
+  `PLAYWRIGHT_MODULE`). It never writes the project file.
 
 ### (Optional) Seed Initial Copy
 

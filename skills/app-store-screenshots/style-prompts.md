@@ -34,6 +34,7 @@ If a user gives a prompt that does not match a named style, fall back to the Gen
 | 16 | `toybox-primary` | [16-toybox-primary.md](./style-prompts/16-toybox-primary.md) | Kids learning, family, beginner, casual game or pet apps. Cream and primaries, rounded toy-lip type, a studded block word, 3D ABC cubes and rainbows around tilted phones. Inspired by Toca Boca. |
 | 17 | `quiet-japandi` | [17-quiet-japandi.md](./style-prompts/17-quiet-japandi.md) | Notes, calendars, reading, tea/coffee, journaling, home or minimalist utilities that should feel calm and crafted. Washi paper, oak shelf, one ceramic cup, vertical Japanese word, one hanko seal. Inspired by MUJI and Kinto. |
 | 18 | `vintage-travel-poster` | [18-vintage-travel-poster.md](./style-prompts/18-vintage-travel-poster.md) | Travel, maps, hiking, weather, parks, road trips or astronomy. Cream-framed silkscreen landscapes, banded skies, hazy ridges, a monolith phone, script + giant caps. Inspired by WPA National Park posters. |
+| 19 | `arcade-sky` | [19-arcade-sky.md](./style-prompts/19-arcade-sky.md) | Pixel-arcade and endless-flyer games. The game's own sky as one panorama across the deck, white rounded type with a thick ink outline and hard drop shadow, one gold word, the mascot on the cover. Inspired by Flappy Bird and Ear Hop. |
 
 Headline copy for any style: see [`copy-ideas.md`](./copy-ideas.md), then rewrite the chosen line in the style's `## Copy tone`.
 
@@ -51,7 +52,8 @@ Headline copy for any style: see [`copy-ideas.md`](./copy-ideas.md), then rewrit
 | Travel, maps, outdoors, weather | Vintage Travel Poster | Magazine Cover Editorial |
 | Music, events, podcasts, indie creative | Risograph Zine | Candy Pop Social |
 | Social, messaging, gen-Z | Candy Pop Social | Risograph Zine, Glossy 3D K-Beauty Creator |
-| Kids, family, beginner learning, casual games | Toybox Primary | Retro Rubberhose Mascot |
+| Kids, family, beginner learning, casual games | Toybox Primary | Retro Rubberhose Mascot, Arcade Sky |
+| Pixel-arcade games, endless flyers | Arcade Sky | Toybox Primary |
 | Dating, members clubs, premium lifestyle | Moody Curated Dating | Magazine Cover Editorial |
 | Couples, pets, journaling | Dreamy Pastel Couples | Soft Clay Wellness |
 | Habits and walking with a mascot | Retro Rubberhose Mascot | Toybox Primary |
