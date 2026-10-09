@@ -104,7 +104,8 @@ export function ScreenshotEditor() {
         }
       }
       for (const imageElement of s.imageElements || []) {
-        if (imageElement.src && !imageElement.src.startsWith("data:")) paths.add(imageElement.src);
+        if (!imageElement.src || imageElement.src.startsWith("data:")) continue;
+        for (const loc of state.locales) paths.add(resolveScreenshot(imageElement.src, loc));
       }
     }
     return Array.from(paths).sort();

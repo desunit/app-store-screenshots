@@ -8,7 +8,7 @@ export function exportAssetPaths(state: ProjectState): string[] {
   for (const slide of state.slidesByDevice[state.device] || []) {
     if (state.device === "feature-graphic" || slide.layout === "feature-graphic") {
       add(state.appIcon);
-      for (const image of slide.imageElements || []) add(image.src);
+      for (const image of slide.imageElements || []) for (const locale of state.locales) add(resolveScreenshot(image.src, locale));
       for (const locale of state.locales) add(resolveScreenshot(slide.backgroundImage, locale));
       continue;
     }
@@ -21,7 +21,7 @@ export function exportAssetPaths(state: ProjectState): string[] {
         }
       }
     }
-    for (const image of slide.imageElements || []) add(image.src);
+    for (const image of slide.imageElements || []) for (const locale of state.locales) add(resolveScreenshot(image.src, locale));
     for (const locale of state.locales) add(resolveScreenshot(slide.backgroundImage, locale));
   }
   return [...paths];
