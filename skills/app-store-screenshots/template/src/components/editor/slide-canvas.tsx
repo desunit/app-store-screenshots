@@ -227,7 +227,8 @@ function EditableText({
       // colours and fonts on the canvas while the export uses the plain copy.
       contentEditable={editable ? "plaintext-only" : false}
       suppressContentEditableWarning
-      data-placeholder={placeholder}
+      // Hint text belongs to the editing UI only: an export (not editable) never shows it.
+      data-placeholder={editable ? placeholder : undefined}
       onInput={handleInput}
       onFocus={(e) => {
         paint(e.currentTarget, true);
