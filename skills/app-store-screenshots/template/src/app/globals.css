@@ -129,4 +129,12 @@
 :lang(th), :lang(lo), :lang(km), :lang(my), :lang(hi), :lang(mr), :lang(ne), :lang(bn),
 :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(vi) {
   --headline-line-height: 1.22;
+  --tall-script: 1; /* slide-canvas adds the outline's growth on top for these */
+  --tall-scale: 0.88;
+  --tall-gap: 0.14em; /* room between the label and marks above the first headline line */
+}
+/* Thai stacks a vowel AND a tone mark above the consonant (ที่, ร้อง): it needs the most room. */
+:lang(th), :lang(lo), :lang(km), :lang(my) {
+  --headline-line-height: 1.45;
+  --tall-scale: 0.74;
 }

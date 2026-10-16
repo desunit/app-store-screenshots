@@ -296,10 +296,16 @@ function textEffects(theme: Theme, fontSize: number): React.CSSProperties {
     const d = fontSize * (t.dropShadowOffset ?? 0.07);
     const w = t.outline ? fontSize * (t.outlineWidth ?? 0.1) : 0;
     // The shadow is the outlined letter shape moved down: ring it so it is as thick as the stroke.
-    const ring = [0, 0.7, 1, 0.7, 0, -0.7, -1, -0.7].map((cos, i) => {
-      const sin = [1, 0.7, 0, -0.7, -1, -0.7, 0, 0.7][i];
-      return `${(cos * w).toFixed(1)}px ${(d + sin * w).toFixed(1)}px 0 ${t.dropShadow}`;
-    });
+    // 32 copies on the circle, and a second ring at half radius: 8 copies left flat facets and
+    // notches on round letters at 1320 px (KidTeller, 2026-10-16).
+    const ring: string[] = [];
+    for (const r of w ? [w, w * 0.5] : [0]) {
+      const n = r ? 32 : 1;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * 2 * Math.PI;
+        ring.push(`${(Math.cos(a) * r).toFixed(1)}px ${(d + Math.sin(a) * r).toFixed(1)}px 0 ${t.dropShadow}`);
+      }
+    }
     style.textShadow = ring.join(", ");
   }
   return style;
@@ -421,12 +427,18 @@ function Caption({
         placeholder="Headline goes here"
         emphasisColor={(inverted ? theme.text?.emphasisAlt : undefined) ?? theme.text?.emphasis ?? accent}
         style={{
-          fontSize: unit * 0.092 * headlineScale,
+          // Tall scripts get more line height (below), so the block would grow into the phone:
+          // globals.css shrinks their type (--tall-scale) to keep the caption box height.
+          fontSize: `calc(${unit * 0.092 * headlineScale}px * var(--tall-scale, 1))`,
           ...textEffects(theme, unit * 0.092 * headlineScale),
           fontWeight: 700,
           // globals.css raises it for scripts with marks above and below the line (th, hi, ar, vi…).
-          lineHeight: "var(--headline-line-height, 0.96)",
+          // An outline + drop shadow grows every line by about 2× its width above and below: in those
+          // scripts add that too, or the outlines of stacked marks merge (Thai, KidTeller 2026-10-16).
+          lineHeight: `calc(var(--headline-line-height, 0.96) + var(--tall-script, 0) * ${
+            theme.text?.outline ? ((theme.text.outlineWidth ?? 0.1) * 2 + (theme.text.dropShadow ? (theme.text.dropShadowOffset ?? 0.07) : 0)).toFixed(3) : 0})`,
           letterSpacing: -unit * 0.001 * headlineScale,
+          paddingTop: "var(--tall-gap, 0)",
           color: fg,
           // The author's line breaks are the layout: lines never wrap, FitWidth shrinks instead.
           whiteSpace: "pre",
